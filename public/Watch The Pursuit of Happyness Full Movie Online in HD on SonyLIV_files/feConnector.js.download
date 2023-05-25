@@ -1,0 +1,247 @@
+window.FE_CONNECTOR = (function () {
+  function handleCustomAnalyticsWrapper() {
+    if (typeof window.ANALYTICS_CONNECTOR_FRONTEND !== "undefined") {
+      handleCustomAnalytics();
+    } else {
+      window.ANALYTICS_SDK_LOADED = function () {
+        handleCustomAnalyticsWrapper();
+      };
+    }
+  }
+
+  function handleCustomAnalytics() {
+    var deviceId = "NA";
+    if (localStorageGetItem("DEVICE_ID_STORAGE_KEY", "string")) {
+      // for tv
+      deviceId = localStorageGetItem("DEVICE_ID_STORAGE_KEY", "string");
+    } else if (localStorageGetItem("token", "string")) {
+      // for web
+      deviceId = localStorageGetItem("token", "string");
+    }
+    var userId = "NA";
+    if (localStorageGetItem("cpcustomerId", "object")) {
+      // for tv
+      userId = localStorageGetItem("cpcustomerId", "object");
+    } else if (localStorageGetItem("CPID", "string")) {
+      // for web
+      userId = localStorageGetItem("CPID", "string");
+    }
+    var countryCode = "NA";
+    if (localStorageGetItem("countryCode", "string")) {
+      // for tv
+      countryCode = localStorageGetItem("countryCode", "string");
+    } else if (localStorageGetItem("country_code", "string")) {
+      // for web
+      countryCode = localStorageGetItem("country_code", "string");
+    }
+    countryCode = countryCode != "NA" ? countryCode.toLowerCase() : "NA";
+    var userType = "anonymous";
+    if (localStorageGetItem("cluster", "string")) {
+      userType = localStorageGetItem("cluster", "string");
+      if (userType == "SR") {
+        userType = "subscribed";
+      } else if (userType == "R") {
+        userType = "registered";
+      } else {
+        userType = "anonymous";
+      }
+    }
+    var currentPlatformEnv = window.CURRENT_PLAYER_ENV;
+    var platform = "WEB";
+    if (currentPlatformEnv == "WEB" || currentPlatformEnv == "MWEB") {
+      platform = currentPlatformEnv;
+    } else if (currentPlatformEnv == "TV") {
+      if (localStorageGetItem("GA_PLATFORM", "string")) {
+        platform = localStorageGetItem("GA_PLATFORM", "string");
+        platform = platform ? platform.toUpperCase().toString() : "WEB";
+      }
+    }
+
+    var partnerId = "sonyliv";
+    var appVersion = window.APP_VERSION;
+    var eighteen_plus = "no";
+    var operatingSystem = "und";
+    var hardware = "und";
+    // window scope data
+    if (typeof window.spnAnalyticsDefaultData !== "undefined") {
+      var userDataList = {
+        subscribed: "subscribed",
+        registered: "registered",
+        anonymous: "anonymous",
+        SR: "subscribed",
+        R: "registered",
+        A: "anonymous"
+      };
+
+      for (let i = 0; i < Object.keys(userDataList).length; i++) {
+        if (
+          window.spnAnalyticsDefaultData.subscribeType.indexOf(
+            Object.keys(userDataList)[i]
+          ) > -1
+        ) {
+          userType = userDataList[Object.keys(userDataList)[i]];
+        }
+      }
+      userId =
+        typeof window.spnAnalyticsDefaultData.userId != "undefined" &&
+        window.spnAnalyticsDefaultData.userId
+          ? window.spnAnalyticsDefaultData.userId
+          : window.spnAnalyticsDefaultData.deviceId;
+      deviceId =
+        typeof window.spnAnalyticsDefaultData.deviceId != "undefined" &&
+        window.spnAnalyticsDefaultData.deviceId
+          ? window.spnAnalyticsDefaultData.deviceId
+          : deviceId;
+      appVersion =
+        typeof window.spnAnalyticsDefaultData.appVersion != "undefined" &&
+        window.spnAnalyticsDefaultData.appVersion
+          ? window.spnAnalyticsDefaultData.appVersion
+          : appVersion;
+      partnerId =
+        typeof window.spnAnalyticsDefaultData.partnerId != "undefined" &&
+        window.spnAnalyticsDefaultData.partnerId
+          ? window.spnAnalyticsDefaultData.partnerId
+          : partnerId;
+      platform = typeof window.spnAnalyticsDefaultData.platform != "undefined" &&
+        window.spnAnalyticsDefaultData.platform
+          ? window.spnAnalyticsDefaultData.platform
+          : platform;
+      eighteen_plus =
+        typeof window.spnAnalyticsDefaultData.eighteen_plus != "undefined" &&
+        window.spnAnalyticsDefaultData.eighteen_plus
+          ? window.spnAnalyticsDefaultData.eighteen_plus
+          : eighteen_plus;
+      countryCode =
+        typeof window.spnAnalyticsDefaultData.countryCode != "undefined" &&
+        window.spnAnalyticsDefaultData.countryCode
+          ? window.spnAnalyticsDefaultData.geoLocation
+          : countryCode;
+      operatingSystem =
+        typeof window.spnAnalyticsDefaultData.operating_system != "undefined" &&
+        window.spnAnalyticsDefaultData.operating_system
+          ? window.spnAnalyticsDefaultData.operating_system
+          : operatingSystem;
+      if (
+        typeof window.spnAnalyticsDefaultData.hardware != "undefined" &&
+        window.spnAnalyticsDefaultData.hardware
+      ) {
+        if (window.spnAnalyticsDefaultData.hardware == "browser") {
+          hardware = "desktop";
+        } else {
+          hardware = window.spnAnalyticsDefaultData.hardware;
+        }
+      }
+    }
+
+    if(userId == "NA" || userId == null || userId == "") {
+      userId = "und";
+    }
+    if(deviceId == "NA" || deviceId == null || deviceId == "") {
+      deviceId = "und";
+    }
+    if(userId == "und" && deviceId != "und") {
+      userId = deviceId;
+    }
+
+    var data = {
+      app_user_id: userId,
+      app_device_id: deviceId,
+      app_subscribe_type: userType,
+      app_partner_id: partnerId.toLowerCase(),
+      app_version: appVersion,
+      app_platform_type: platform,
+      app_build_version:
+        typeof window.analyticsSDKInfo != "undefined" &&
+        window.analyticsSDKInfo.analyticsSDKVersion
+          ? window.analyticsSDKInfo.analyticsSDKVersion
+          : "NA",
+      app_geo_location: countryCode.toLowerCase(),
+      app_operating_system: operatingSystem,
+      app_hardware: hardware,
+      eighteen_plus:eighteen_plus,
+      customtag_colour: "green",
+      custom_tags: {
+        //player_custom_state: "cw_ad",  
+        //is_ad_eligible: false  
+      }
+    };
+    try {
+      //var beaconUrl = "https://dev-analytic.sonyliv.com/beacon";
+      var beaconUrl = "https://pp-api-godavari.sonyliv.com/beacon";
+      var godavariAdHeartbeatInterval = 10000;
+      var godavariEnabled = true;
+      var godavarErrorRetryinterval = 30000;
+      var godavariHeartbeatInterval = 40000;
+      if (window.spnAnalyticsDefaultData && typeof window.spnAnalyticsDefaultData.godavari_analytics_settings !== "undefined") {
+          var analyticsSettingKeys = window.spnAnalyticsDefaultData.godavari_analytics_settings;
+
+        beaconUrl =
+          typeof analyticsSettingKeys.godavari_beacon_url != "undefined" &&
+          analyticsSettingKeys.godavari_beacon_url
+            ? analyticsSettingKeys.godavari_beacon_url
+            : beaconUrl;
+        godavariAdHeartbeatInterval =
+          typeof analyticsSettingKeys.godavari_ad_heartbeat_interval !=
+            "undefined" && analyticsSettingKeys.godavari_ad_heartbeat_interval
+            ? analyticsSettingKeys.godavari_ad_heartbeat_interval * 1000
+            : godavariAdHeartbeatInterval;
+        godavariEnabled =
+          typeof analyticsSettingKeys.godavari_enabled != "undefined" &&
+          !analyticsSettingKeys.godavari_enabled
+            ? analyticsSettingKeys.godavari_enabled
+            : godavariEnabled;
+        godavarErrorRetryinterval =
+          typeof analyticsSettingKeys.godavari_error_retryinterval !=
+            "undefined" && analyticsSettingKeys.godavari_error_retryinterval
+            ? analyticsSettingKeys.godavari_error_retryinterval * 1000
+            : godavarErrorRetryinterval;
+        godavariHeartbeatInterval =
+          typeof analyticsSettingKeys.godavari_heartbeat_interval !=
+            "undefined" && analyticsSettingKeys.godavari_heartbeat_interval
+            ? analyticsSettingKeys.godavari_heartbeat_interval * 1000
+            : godavariHeartbeatInterval;
+      }
+
+      window.ANALYTICS_CONNECTOR_FRONTEND.setDefaultConfig({
+        BEACON_BASE_URL: beaconUrl,
+        GODAVARI_AD_HEARTBEAT_INTERVAL: godavariAdHeartbeatInterval,
+        GODAVARI_ENABLED: godavariEnabled,
+        GODAVARI_ERROR_RETRYINTERVAL: godavarErrorRetryinterval,
+        GODAVARI_HEARTBEAT_INTERVAL: godavariHeartbeatInterval
+      });
+      window.ANALYTICS_CONNECTOR_FRONTEND.appStart("AppSessionStart", data);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function localStorageGetItem(key, type) {
+    try {
+      var value = "";
+      if (type == "string") {
+        value = localStorage.getItem(key);
+        return value;
+      } else if (type == "object") {
+        value = JSON.parse(localStorage.getItem(key));
+        return value;
+      }
+    } catch (error) {
+      return value;
+    }
+  }
+
+  function bodyOnload() {
+    handleCustomAnalyticsWrapper();
+  }
+
+  function registerBodyOnload() {
+    if (document.body) {
+      bodyOnload();
+    } else {
+      window.addEventListener("DOMContentLoaded", bodyOnload);
+    }
+  }
+
+  registerBodyOnload();
+})();
+
